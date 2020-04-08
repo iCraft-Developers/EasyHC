@@ -1,0 +1,23 @@
+name: EasyHC
+main: icraft.easyhc.Main
+version: 1.0
+author: xdaanielx
+
+commands:
+  itemy:
+    description: Itemy potrzebne na gildie.
+    usage: /<command>
+  gildia:
+    description: Podstawowa komenda gildii.
+    usage: /<command>
+    aliases: g
+  openinv:
+    description: Otwiera ekwipunek gracza.
+    usage: /<command> [player].
+  gc:
+    description: Czat gildii.
+    usage: /<command>
+  randomtp:
+    description: Teleportacja w losowe miejsce.
+    usage: /<command>
+    aliases: rtp
