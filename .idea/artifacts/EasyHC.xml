@@ -1,8 +1,0 @@
-<component name="ArtifactManager">
-  <artifact type="jar" build-on-make="true" name="EasyHC">
-    <output-path>$PROJECT_DIR$/out/artifacts/EasyHC</output-path>
-    <root id="archive" name="EasyHC.jar">
-      <element id="module-output" name="EasyHC" />
-    </root>
-  </artifact>
-</component>
