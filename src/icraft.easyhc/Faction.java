@@ -1,6 +1,6 @@
 package icraft.easyhc;
 
-import icraft.easyhc.GUI.GUIPlayer;
+import icraft.easyhc.GUI.Title;
 import org.bukkit.Location;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
@@ -141,8 +141,11 @@ public class Faction implements Listener {
         }
 
         if(!Objects.equals(fromTag, toTag)) {
-            if(toTag == null) new GUIPlayer(p).showTitle("§8Pustkowie", null, 5, 30, 5);
-            if(toTag != null) new GUIPlayer(p).showTitle("§8" + toTag, "§8" + Faction.get(toTag).getName(), 5, 30, 5);
+            if(toTag == null) new Title("§8Pustkowie", Title.Type.TITLE, 5, 30, 5).show(p);
+            if(toTag != null) {
+                new Title("§8" + toTag, Title.Type.TITLE, 5, 30, 5).show(p);
+                new Title("§8" + Faction.get(toTag).getName(), Title.Type.SUBTITLE, 5, 30, 5).show(p);
+            }
         }
     }
 
@@ -197,7 +200,7 @@ public class Faction implements Listener {
             Location loc = b.getLocation();
             for (Faction faction : Faction.getAll()) {
                 if (faction.isAtLocation(loc)) {
-                    new GUIPlayer(p).showTitle("§8[§6Gildie§8] §cTen teren nalezy do gildii: " + faction.getTag() + " - " + faction.getName(),5, 30, 5);
+                    new Title("§8[§6Gildie§8] §cTen teren nalezy do gildii: " + faction.getTag() + " - " + faction.getName(), Title.Type.ACTIONBAR,5, 30, 5).show(p);
                     e.setCancelled(true);
                     return;
                 }

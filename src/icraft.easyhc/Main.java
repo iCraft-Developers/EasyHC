@@ -9,15 +9,17 @@ import org.bukkit.OfflinePlayer;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.server.TabCompleteEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.java.JavaPlugin;
-
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.sql.ResultSet;
+import java.util.ArrayList;
 import java.util.UUID;
 
 //import static icraft.easyhc.Faction.factions;
@@ -27,6 +29,7 @@ public class Main extends JavaPlugin implements Listener {
 
     public static ItemStack[] itemsForFaction;
     public static PluginManager pm;
+    ArrayList<String> argsCompletions;
 
 
     public void onEnable() {
@@ -37,17 +40,19 @@ public class Main extends JavaPlugin implements Listener {
         new Faction(this);
 
 
-        icraft.easyhc.FactionsCommand.factionsArgs.put("stworz", "§6Tworzy nowa gildie.");
-        icraft.easyhc.FactionsCommand.factionsArgs.put("itemy", "§6Wyswietla itemy potrzebne na gildie.");
-        icraft.easyhc.FactionsCommand.factionsArgs.put("menu", "§6Otwiera graficzne menu gildii.");
-        icraft.easyhc.FactionsCommand.factionsArgs.put("zapros", "§6Zaprasza gracza do gildii.");
-        icraft.easyhc.FactionsCommand.factionsArgs.put("akceptuj", "§6Akceptuje zaproszenie do gildii.");
-        icraft.easyhc.FactionsCommand.factionsArgs.put("odrzuc", "§6Odrzuca zaproszenie do gildii.");
-        icraft.easyhc.FactionsCommand.factionsArgs.put("rozszerz", "§6Rozszszerza obszar gildii.");
-        icraft.easyhc.FactionsCommand.factionsArgs.put("usun", "§6Usuwa gildie.");
-        icraft.easyhc.FactionsCommand.factionsArgs.put("info", "§6Wyswietla informacje o gildii.");
-        icraft.easyhc.FactionsCommand.factionsArgs.put("chat", "§6Zarzadza chatem gildii.");
-        icraft.easyhc.FactionsCommand.factionsArgs.put("zabezpiecz", "§6Umozliwia kupno dodatkowego zabezpieczenia gildii");
+        FactionsCommand.factionsArgs.put("stworz", "§6Tworzy nowa gildie.");
+        FactionsCommand.factionsArgs.put("itemy", "§6Wyswietla itemy potrzebne na gildie.");
+        FactionsCommand.factionsArgs.put("menu", "§6Otwiera graficzne menu gildii.");
+        FactionsCommand.factionsArgs.put("zapros", "§6Zaprasza gracza do gildii.");
+        FactionsCommand.factionsArgs.put("akceptuj", "§6Akceptuje zaproszenie do gildii.");
+        FactionsCommand.factionsArgs.put("odrzuc", "§6Odrzuca zaproszenie do gildii.");
+        FactionsCommand.factionsArgs.put("rozszerz", "§6Rozszszerza obszar gildii.");
+        FactionsCommand.factionsArgs.put("usun", "§6Usuwa gildie.");
+        FactionsCommand.factionsArgs.put("info", "§6Wyswietla informacje o gildii.");
+        FactionsCommand.factionsArgs.put("chat", "§6Zarzadza chatem gildii.");
+        FactionsCommand.factionsArgs.put("zabezpiecz", "§6Umozliwia kupno dodatkowego zabezpieczenia gildii");
+
+        argsCompletions = new ArrayList<>(FactionsCommand.factionsArgs.keySet());
 
         itemsForFaction = new ItemStack[]{new ItemStack(Material.DIAMOND, 64), new ItemStack(Material.EMERALD, 64), new ItemStack(Material.BOOK, 32)};
 
@@ -138,6 +143,40 @@ public class Main extends JavaPlugin implements Listener {
         return message;
     }
      */
+
+
+
+    @EventHandler
+    public void onTabComplete(TabCompleteEvent e){
+        if(e.getSender() instanceof Player) {
+            Player p = (Player) e.getSender();
+            String buffer = e.getBuffer();
+            String[] args = buffer.split(" ");
+            if (args[0].equalsIgnoreCase("/gildia") || args[0].equalsIgnoreCase("/g")) {
+                if (args.length > 2) {
+                    e.setCompletions(new ArrayList<>());
+                    return;
+                }
+                if (args.length > 1) {
+                    if(buffer.endsWith(" ")) {
+                        e.setCompletions(new ArrayList<>());
+                        return;
+                    }
+                    ArrayList<String> completions = new ArrayList<>();
+                    for (String completion : argsCompletions) {
+                        if (completion.startsWith(args[1].toLowerCase())) {
+                            completions.add(completion);
+                        }
+                    }
+                    e.setCompletions(completions);
+                } else {
+                    e.setCompletions(argsCompletions);
+                }
+            }
+        }
+    }
+
+
 
 
     public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {

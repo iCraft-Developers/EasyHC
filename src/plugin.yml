@@ -2,6 +2,7 @@ name: EasyHC
 main: icraft.easyhc.Main
 version: 1.0
 author: xdaanielx
+description: Author's plugin for EasyHC.
 
 commands:
   itemy:
