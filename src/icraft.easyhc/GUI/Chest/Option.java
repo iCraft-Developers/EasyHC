@@ -1,39 +1,38 @@
 package icraft.easyhc.GUI.Chest;
 
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.List;
+import java.util.Objects;
 
-public class Option extends ItemStack {
+public class Option {
+    private ItemStack itemStack;
     private String function;
 
 
     public Option(ItemStack itemStack, String function) {
         this.function = function;
-        ItemStack item = new ItemStack(itemStack.getType(), itemStack.getAmount());
-        ItemMeta meta = item.getItemMeta();
-        meta.setDisplayName(itemStack.getItemMeta().getDisplayName());
-
-        List<String> metaLore = itemStack.getItemMeta().getLore();
-
-        meta.setLore(metaLore);
-        item.setItemMeta(meta);
-
+        this.itemStack = itemStack;
     }
 
 
-    public void runFunction(Player p) throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
-        Method method = Functions.class.getDeclaredMethod(this.function, Player.class);
+    public static void runFunction(String function, Player p) throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
+        Method method = Functions.class.getDeclaredMethod(function, Player.class);
         method.invoke(null, p);
+        //p.sendMessage(function);
     }
 
 
+    public ItemStack getItemStack() {
+        return itemStack;
+    }
 
     public String getFunction(){
-        return this.function;
+        return function;
     }
 }

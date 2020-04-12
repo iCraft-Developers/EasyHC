@@ -1,6 +1,7 @@
 package icraft.easyhc;
 
 import icraft.easyhc.GUI.Chest.Menu;
+import icraft.easyhc.GUI.Chest.Option;
 import icraft.easyhc.sql.SQLConnection;
 import org.apache.commons.lang.ArrayUtils;
 import org.bukkit.Bukkit;
@@ -57,7 +58,14 @@ public class Main extends JavaPlugin implements Listener {
         itemsForFaction = new ItemStack[]{new ItemStack(Material.DIAMOND, 64), new ItemStack(Material.EMERALD, 64), new ItemStack(Material.BOOK, 32)};
 
 
-        Menu menu = new Menu("itemsForFaction", "Itemy potrzebne na gildie:", 1, itemsForFaction);
+        Menu menu = new Menu("itemsForFaction", "Itemy potrzebne na gildie:", 1);
+        for(ItemStack is : itemsForFaction){
+            try {
+                menu.addOption(new Option(is, null));
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
 
 
 
