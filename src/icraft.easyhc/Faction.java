@@ -1,6 +1,6 @@
 package icraft.easyhc;
 
-import icraft.easyhc.GUI.Title;
+import icraft.gui.Title;
 import org.bukkit.Location;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
@@ -11,8 +11,6 @@ import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 
 import java.util.*;
-
-import static icraft.easyhc.Main.formatInfoAsMessage;
 
 public class Faction implements Listener {
     private static HashMap<String, Faction> factions = new HashMap<>();

@@ -3,6 +3,8 @@ main: icraft.easyhc.Main
 version: 1.0
 author: xdaanielx
 description: Author's plugin for EasyHC.
+api-version: 1.15
+depend: GUI-API
 
 commands:
   itemy:

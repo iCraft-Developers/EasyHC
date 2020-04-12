@@ -1,7 +1,7 @@
 package icraft.easyhc;
 
-import icraft.easyhc.GUI.Chest.Menu;
-import icraft.easyhc.GUI.Chest.Option;
+import icraft.gui.Chest.Menu;
+import icraft.gui.Chest.Option;
 import icraft.easyhc.sql.SQLConnection;
 import org.apache.commons.lang.ArrayUtils;
 import org.bukkit.Bukkit;
@@ -58,9 +58,14 @@ public class Main extends JavaPlugin implements Listener {
         itemsForFaction = new ItemStack[]{new ItemStack(Material.DIAMOND, 64), new ItemStack(Material.EMERALD, 64), new ItemStack(Material.BOOK, 32)};
 
 
-        Menu menu = new Menu("itemsForFaction", "Itemy potrzebne na gildie:", 1);
+        Menu menu = new Menu("itemsForFaction", "Itemy potrzebne na gildie:", 1, this);
         for(ItemStack is : itemsForFaction){
             try {
+                /*
+                HashMap<Option.ClickType, String> fs = new HashMap<>();
+                fs.put(Option.ClickType.LEFT, "works");
+                menu.addOption(new Option(is, fs));
+                 */
                 menu.addOption(new Option(is, null));
             } catch (Exception e) {
                 e.printStackTrace();
@@ -218,7 +223,8 @@ public class Main extends JavaPlugin implements Listener {
                     break;
                 case "itemy":
                     //p.sendMessage(formatInfoAsMessage(new String[]{"Itemy potrzebne na gildie:"}, formatFactionItemsAsMessage()));
-                    Menu.get("itemsForFaction").show(p);
+                    //Menu.get("itemsForFaction").show(p);
+                    new Menu("xd", "Itemy potrzebne na gildie:", 1, this).show(p);
                     break;
                 case "gildia":
                     if (args.length > 0 && icraft.easyhc.FactionsCommand.factionsArgs.containsKey(args[0].toLowerCase())) {
