@@ -8,7 +8,9 @@ public class SQLQuery {
     }
 
     public enum Command {
-        INSERT;
+        INSERT,
+        DELETE,
+        UPDATE;
     }
 
 
@@ -34,6 +36,15 @@ public class SQLQuery {
                 query += ");";
                 //" VALUES ('" + tag + "', '" + name + "', '" + p.getUniqueId().toString() + "', '" + p.getLocation().getChunk().getX() + "', '" + p.getLocation().getChunk().getZ() + "', '0')";
                 break;
+            case DELETE:
+                query = "delete from " + tableName + " where " + values[0] + ";";
+                break;
+            case UPDATE:
+                query = "update " + tableName + " set " + values[0];
+                if(values.length > 1){
+                    query += " where " + values[1];
+                }
+                query += ";";
         }
     }
 

@@ -15,7 +15,6 @@ import java.util.*;
 public class Faction implements Listener {
     private static HashMap<String, Faction> factions = new HashMap<>();
 
-
     private String tag;
     private String name;
     private Location2D heart;
@@ -77,8 +76,16 @@ public class Faction implements Listener {
         return false;
     }
 
-    public void remove() {
+    public void remove() throws Throwable {
+        factions.remove(this.tag);
+        DatabaseBuffer.buffer.add(new BufferAction(BufferAction.ActionType.REMOVE_FACTION, "tag=\"" + this.tag + "\""));
+        DatabaseBuffer.buffer.add(new BufferAction(BufferAction.ActionType.REMOVE_MEMBER, "tag=\"" + this.tag + "\""));
+    }
 
+    public void extend() throws Throwable {
+        this.level++;
+        factions.put(this.tag, new Faction(this.tag, this.name, this.owner, this.heart, this.level, false));
+        DatabaseBuffer.buffer.add(new BufferAction(BufferAction.ActionType.EXTEND_FACTION, "level=" + this.level, "tag=\"" + this.tag + "\""));
     }
 
     public static Faction get(String tag){
@@ -93,11 +100,19 @@ public class Faction implements Listener {
         return owner;
     }
 
-    public ArrayList<UUID> getMembers() {
+    ArrayList<UUID> getMembers() {
         return members;
     }
 
+    void removeMember(UUID uuid) throws Exception {
+        this.members.remove(uuid);
+        DatabaseBuffer.buffer.add(new BufferAction(BufferAction.ActionType.REMOVE_MEMBER, "uuid=\"" + uuid.toString() + "\""));
+    }
 
+
+    public int getLevel() {
+        return level;
+    }
 
 
 
@@ -139,7 +154,10 @@ public class Faction implements Listener {
         }
 
         if(!Objects.equals(fromTag, toTag)) {
-            if(toTag == null) new Title("§8Pustkowie", Title.Type.TITLE, 5, 30, 5).show(p);
+            if(toTag == null) {
+                new Title("§8Pustkowie", Title.Type.TITLE, 5, 30, 5).show(p);
+                new Title("", Title.Type.SUBTITLE, 5, 30, 5).show(p);
+            }
             if(toTag != null) {
                 new Title("§8" + toTag, Title.Type.TITLE, 5, 30, 5).show(p);
                 new Title("§8" + Faction.get(toTag).getName(), Title.Type.SUBTITLE, 5, 30, 5).show(p);
@@ -198,8 +216,22 @@ public class Faction implements Listener {
             Location loc = b.getLocation();
             for (Faction faction : Faction.getAll()) {
                 if (faction.isAtLocation(loc)) {
-                    new Title("§8[§6Gildie§8] §cTen teren nalezy do gildii: " + faction.getTag() + " - " + faction.getName(), Title.Type.ACTIONBAR,5, 30, 5).show(p);
-                    e.setCancelled(true);
+                    if(e.isBlockInHand()){
+                        b = b.getRelative(e.getBlockFace());
+                        loc = b.getLocation();
+                        if(!faction.isAtLocation(loc)){
+                            for (Faction f : Faction.getAll()) {
+                                if (f.isAtLocation(loc)) {
+                                    faction = f;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    if(!p.getUniqueId().equals(faction.owner) && !faction.members.contains(p.getUniqueId())) {
+                        new Title("§8[§6Gildie§8] §cTen teren nalezy do gildii: " + faction.getTag() + " - " + faction.getName(), Title.Type.ACTIONBAR, 5, 30, 5).show(p);
+                        e.setCancelled(true);
+                    }
                     return;
                 }
             }

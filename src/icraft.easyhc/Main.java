@@ -12,11 +12,14 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerLoginEvent;
 import org.bukkit.event.server.TabCompleteEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.scheduler.BukkitRunnable;
+
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.sql.ResultSet;
@@ -31,6 +34,7 @@ public class Main extends JavaPlugin implements Listener {
     public static ItemStack[] itemsForFaction;
     public static PluginManager pm;
     ArrayList<String> argsCompletions;
+    public static boolean serverError = false;
 
 
     public void onEnable() {
@@ -90,7 +94,15 @@ public class Main extends JavaPlugin implements Listener {
             conn.close();
         } catch (Exception e) {
             e.printStackTrace();
-            Bukkit.shutdown();
+            serverError = true;
+            for (Player p : Bukkit.getServer().getOnlinePlayers()) {
+                p.kickPlayer("Na serwerze wystapil krytyczny blad. Bardzo prosimy o powiadomienie o tym administracji.");
+            }
+            new BukkitRunnable() {
+                public void run() {
+                    Bukkit.reload();
+                }
+            }.runTaskLater(this, 300L);
         }
 
 
@@ -223,8 +235,8 @@ public class Main extends JavaPlugin implements Listener {
                     break;
                 case "itemy":
                     //p.sendMessage(formatInfoAsMessage(new String[]{"Itemy potrzebne na gildie:"}, formatFactionItemsAsMessage()));
-                    //Menu.get("itemsForFaction").show(p);
-                    new Menu("xd", "Itemy potrzebne na gildie:", 1, this).show(p);
+                    Menu.get("itemsForFaction").show(p);
+                    //new Menu("xd", "Itemy potrzebne na gildie:", 1, this).show(p);
                     break;
                 case "gildia":
                     if (args.length > 0 && icraft.easyhc.FactionsCommand.factionsArgs.containsKey(args[0].toLowerCase())) {
@@ -270,6 +282,12 @@ public class Main extends JavaPlugin implements Listener {
     }
      */
 
+
+    public void onJoin(PlayerLoginEvent e){
+        if(serverError){
+            e.disallow(PlayerLoginEvent.Result.KICK_WHITELIST, "");
+        }
+    }
 
 
 

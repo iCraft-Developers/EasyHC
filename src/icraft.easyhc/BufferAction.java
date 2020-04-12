@@ -16,26 +16,39 @@ public class BufferAction {
         ADD_MEMBER,
         REMOVE_FACTION,
         REMOVE_MEMBER,
-        CHANGE_OWNER
+        CHANGE_OWNER,
+        EXTEND_FACTION;
 
     }
 
 
     public BufferAction(ActionType action, Object...args) throws Exception {
         this.action = action;
+        SQLQuery sqlquery;
         switch(action){
             case ADD_FACTION:
-                SQLQuery sqlquery = new SQLQuery(SQLQuery.Command.INSERT, "factions", args);
+                sqlquery = new SQLQuery(SQLQuery.Command.INSERT, "factions", args);
                 query = sqlquery.getQuery();
                 Bukkit.getLogger().info(query);
                 break;
             case ADD_MEMBER:
                 break;
             case REMOVE_FACTION:
+                sqlquery = new SQLQuery(SQLQuery.Command.DELETE, "factions", args);
+                query = sqlquery.getQuery();
+                Bukkit.getLogger().info(query);
                 break;
             case REMOVE_MEMBER:
+                sqlquery = new SQLQuery(SQLQuery.Command.DELETE, "members", args);
+                query = sqlquery.getQuery();
+                Bukkit.getLogger().info(query);
                 break;
             case CHANGE_OWNER:
+                break;
+            case EXTEND_FACTION:
+                sqlquery = new SQLQuery(SQLQuery.Command.UPDATE, "factions", args);
+                query = sqlquery.getQuery();
+                Bukkit.getLogger().info(query);
                 break;
         }
     }
