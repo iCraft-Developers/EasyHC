@@ -8,6 +8,7 @@ import org.bukkit.scheduler.BukkitRunnable;
 import java.util.LinkedHashSet;
 
 import static icraft.easyhc.Main.serverError;
+import static icraft.easyhc.Main.setServerError;
 
 public class DatabaseBuffer {
     public static LinkedHashSet<BufferAction> buffer;
@@ -28,10 +29,7 @@ public class DatabaseBuffer {
                     serverError = false;
                 } catch(Exception e) {
                     e.printStackTrace();
-                    serverError = true;
-                    for (Player p : Bukkit.getServer().getOnlinePlayers()) {
-                        p.kickPlayer("Na serwerze wystapil krytyczny blad. Bardzo prosimy o powiadomienie o tym administracji.");
-                    }
+                    setServerError();
                 }
             }
         }.runTaskTimer(plugin, 600L,100L);

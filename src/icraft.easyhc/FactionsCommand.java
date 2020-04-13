@@ -1,6 +1,7 @@
 package icraft.easyhc;
 
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -47,12 +48,42 @@ public class FactionsCommand {
                 p.sendMessage(formatInfoAsMessage("Tag gildii musi miec od 3 do 5 znakow."));
                 return;
             }
+
+            tag = args[1].toUpperCase();
+
+            if(Faction.exists(tag)){
+                p.sendMessage(formatInfoAsMessage("Ten tag gildii jest juz zajety przez inna gildie."));
+                return;
+            }
+
             if(args[2].length() < 5 || args[2].length() > 20) {
                 p.sendMessage(formatInfoAsMessage("Nazwa gildii musi miec od 5 do 20 znakow."));
                 return;
             }
-            tag = args[1].toUpperCase();
+
             name = args[2];
+
+            if(p.getLocation().getBlockY() < 50) {
+                p.sendMessage(formatInfoAsMessage("Nie mozesz sie znajdowac ponizej 50 kratki."));
+                return;
+            }
+
+
+
+            //TODO: Opracowac instrukcje warunkowa - min. 50 kratek od granicy innej gildii
+            /*
+            if(args[2].length() < 5 || args[2].length() > 20) {
+                p.sendMessage(formatInfoAsMessage("Nie mozesz sie znajdowac na terenie innej gildii."));
+                return;
+            }
+
+            for(Faction f : Faction.getAll()) {
+                if(Math.abs(f.getPos1().getX() - p.getLocation().getBlockX()) > 49 && Math.abs(f.getPos1().getZ() - p.getLocation().getBlockZ()) > 49 && Math.abs(f.getPos2().getX() - p.getLocation().getBlockX()) > 49 && Math.abs(f.getPos2().getZ() - p.getLocation().getBlockZ()) > 49)
+                p.sendMessage(formatInfoAsMessage("Musisz sie znajdowac co najmniej 50 kratek od granicy innej gildii."));
+                return;
+            }
+
+             */
 
 
 
@@ -104,6 +135,7 @@ public class FactionsCommand {
 
 
     public static void rozszerz(Player p, String...args) throws Throwable{
+        //TODO: Blokada rozszerzania gdy wejdzie na inna gildie
         try {
             if (args.length > 1) {
                 p.sendMessage(formatInfoAsMessage("Podales zbyt duzo argumentow!", "Poprawne uzycie: /g rozszerz"));

@@ -1,16 +1,44 @@
 package icraft.easyhc;
 
+import com.sk89q.worldedit.EditSession;
+import com.sk89q.worldedit.WorldEdit;
+import com.sk89q.worldedit.WorldEditException;
+import com.sk89q.worldedit.bukkit.BukkitAdapter;
+import com.sk89q.worldedit.bukkit.WorldEditPlugin;
+import com.sk89q.worldedit.extent.clipboard.Clipboard;
+import com.sk89q.worldedit.extent.clipboard.io.ClipboardFormat;
+import com.sk89q.worldedit.extent.clipboard.io.ClipboardFormats;
+import com.sk89q.worldedit.extent.clipboard.io.ClipboardReader;
+import com.sk89q.worldedit.function.operation.Operation;
+import com.sk89q.worldedit.function.operation.Operations;
+import com.sk89q.worldedit.math.BlockVector3;
+import com.sk89q.worldedit.session.ClipboardHolder;
 import icraft.gui.Title;
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.block.Block;
+import org.bukkit.boss.BarColor;
+import org.bukkit.boss.BarFlag;
+import org.bukkit.boss.BarStyle;
+import org.bukkit.boss.BossBar;
+import org.bukkit.entity.EnderCrystal;
+import org.bukkit.entity.Entity;
+import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
+import org.bukkit.event.entity.EntityDamageByBlockEvent;
+import org.bukkit.event.entity.EntityDamageByEntityEvent;
+import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
-
+import java.io.File;
+import java.io.FileInputStream;
 import java.util.*;
+import static icraft.easyhc.Main.setServerError;
 
 public class Faction implements Listener {
     private static HashMap<String, Faction> factions = new HashMap<>();
@@ -23,6 +51,8 @@ public class Faction implements Listener {
     private ArrayList<UUID> members;
     private Location2D pos1;
     private Location2D pos2;
+    private double hp;
+    private BossBar bossbar;
 
     public Faction(Main plugin){
         Main.pm.registerEvents(this, plugin);
@@ -42,8 +72,14 @@ public class Faction implements Listener {
         this.owner = owner;
         this.level = level;
         this.heart = heart;
-        if(isNewlyCreated) DatabaseBuffer.buffer.add(new BufferAction(BufferAction.ActionType.ADD_FACTION, tag, name, owner.toString(), heart.getX(), heart.getZ(), 0));
         factions.put(tag, this);
+        this.hp = (this.level + 1) * 100.0;
+        this.bossbar = Bukkit.createBossBar("Gildia " + this.tag + " - " + this.name + "    " + ((int)this.hp) + "/" + ((this.level + 1) * 100) + "HP" + " (Poziom " + this.level + ")", BarColor.RED, BarStyle.SEGMENTED_10, BarFlag.CREATE_FOG, BarFlag.DARKEN_SKY);
+        if(isNewlyCreated) {
+            DatabaseBuffer.buffer.add(new BufferAction(BufferAction.ActionType.ADD_FACTION, tag, name, owner.toString(), heart.getX(), heart.getZ(), 0));
+            this.createHeart();
+        }
+        this.bossbar.setProgress(this.hp / ((this.level + 1) * 100));
     }
 
     void addMembers(UUID...uuid){
@@ -64,9 +100,57 @@ public class Faction implements Listener {
     }
 
 
-
     public String getName() {
         return name;
+    }
+
+
+
+    private void createHeart() throws Exception {
+        File schematic = new File(Objects.requireNonNull(Bukkit.getServer().getPluginManager().getPlugin("EasyHC")).getDataFolder().getAbsolutePath() + "/heart.schem");
+        if(!schematic.exists()){
+            setServerError();
+            throw new Exception("Could not find file heart.schem in plugin's data folder!");
+        }
+
+
+
+        WorldEditPlugin we = (WorldEditPlugin) Bukkit.getPluginManager().getPlugin("WorldEdit");
+        assert we != null;
+        ClipboardFormat format = ClipboardFormats.findByFile(schematic);
+        assert format != null;
+        ClipboardReader reader = format.getReader(new FileInputStream(schematic));
+
+        Clipboard clipboard = reader.read();
+
+        try { //Pasting Operation
+// We need to adapt our world into a format that worldedit accepts. This looks like this:
+// Ensure it is using com.sk89q... otherwise we'll just be adapting a world into the same world.
+            com.sk89q.worldedit.world.World adaptedWorld = BukkitAdapter.adapt(Objects.requireNonNull(Bukkit.getWorld("EasyHC")));
+
+            EditSession editSession = WorldEdit.getInstance().getEditSessionFactory().getEditSession(adaptedWorld,
+                    -1);
+
+// Saves our operation and builds the paste - ready to be completed.
+            Operation operation = new ClipboardHolder(clipboard).createPaste(editSession)
+                    .to(BlockVector3.at(this.heart.getX(), 45, this.heart.getZ())).ignoreAirBlocks(false).build();
+
+                Operations.complete(operation);
+                editSession.flushSession();
+
+            } catch (WorldEditException e) { // If worldedit generated an exception it will go here
+                e.printStackTrace();
+                setServerError();
+            }
+    }
+
+
+    public Location2D getHeart() {
+        return heart;
+    }
+
+    public static boolean exists(String tag){
+        if(factions.containsKey(tag)) return true; else return false;
     }
 
     public boolean isAtLocation(Location loc){
@@ -77,10 +161,17 @@ public class Faction implements Listener {
     }
 
     public void remove() throws Throwable {
+        Collection<Entity> entities = Bukkit.getWorld("EasyHC").getNearbyEntities(new Location(Bukkit.getWorld("EasyHC"), this.heart.getX(), 45, this.heart.getZ()),3,3,3);
+        for(Entity entity : entities){
+            if(entity.getType() == EntityType.ENDER_CRYSTAL){
+                entity.remove();
+            }
+        }
+
         factions.remove(this.tag);
         DatabaseBuffer.buffer.add(new BufferAction(BufferAction.ActionType.REMOVE_FACTION, "tag=\"" + this.tag + "\""));
         DatabaseBuffer.buffer.add(new BufferAction(BufferAction.ActionType.REMOVE_MEMBER, "tag=\"" + this.tag + "\""));
-    }
+        }
 
     public void extend() throws Throwable {
         this.level++;
@@ -150,17 +241,21 @@ public class Faction implements Listener {
 
             }
 
-            if(fromTag != null & toTag != null) break;
+            if(fromTag != null && toTag != null) break;
         }
 
         if(!Objects.equals(fromTag, toTag)) {
             if(toTag == null) {
                 new Title("§8Pustkowie", Title.Type.TITLE, 5, 30, 5).show(p);
                 new Title("", Title.Type.SUBTITLE, 5, 30, 5).show(p);
+                Faction.get(fromTag).bossbar.removePlayer(p);
             }
             if(toTag != null) {
                 new Title("§8" + toTag, Title.Type.TITLE, 5, 30, 5).show(p);
                 new Title("§8" + Faction.get(toTag).getName(), Title.Type.SUBTITLE, 5, 30, 5).show(p);
+                if(!Faction.get(toTag).owner.equals(p.getUniqueId()) && !Faction.get(toTag).members.contains(p.getUniqueId())) {
+                    Faction.get(toTag).bossbar.addPlayer(p);
+                }
             }
         }
     }
@@ -213,6 +308,7 @@ public class Faction implements Listener {
         Player p = e.getPlayer();
         if(e.getAction() == Action.LEFT_CLICK_BLOCK || e.getAction() == Action.RIGHT_CLICK_BLOCK || e.getAction() == Action.PHYSICAL) {
             Block b = e.getClickedBlock();
+            assert b != null;
             Location loc = b.getLocation();
             for (Faction faction : Faction.getAll()) {
                 if (faction.isAtLocation(loc)) {
@@ -229,7 +325,10 @@ public class Faction implements Listener {
                         }
                     }
                     if(!p.getUniqueId().equals(faction.owner) && !faction.members.contains(p.getUniqueId())) {
-                        new Title("§8[§6Gildie§8] §cTen teren nalezy do gildii: " + faction.getTag() + " - " + faction.getName(), Title.Type.ACTIONBAR, 5, 30, 5).show(p);
+                        new Title("§8[§6Gildie§8] §cTen teren nalezy do gildii: " + faction.tag + " - " + faction.getName(), Title.Type.ACTIONBAR, 5, 30, 5).show(p);
+                        e.setCancelled(true);
+                    } else if(loc.getBlockX() > faction.getHeart().getX() - 4 && loc.getBlockX() < faction.getHeart().getX() + 4 && loc.getBlockY() > 41 && loc.getY() < 49 && loc.getBlockZ() > faction.getHeart().getZ() - 4 && loc.getBlockZ() < faction.getHeart().getZ() + 4) {
+                        new Title("§8[§6Gildie§8] §cNie mozesz modyfikowac serca gildii", Title.Type.ACTIONBAR, 5, 30, 5).show(p);
                         e.setCancelled(true);
                     }
                     return;
@@ -240,7 +339,73 @@ public class Faction implements Listener {
 
 
 
+    //TODO: Dodac blokade dodawania endercystalow
+    //TODO: Zrobic zabezpieczenie zeby pluginy nie niszczyly serca jak np komenda /mobkill
 
+    /*
+    if(e.getCause() != EntityDamageEvent.DamageCause.ENTITY_ATTACK && e.getCause() != EntityDamageEvent.DamageCause.ENTITY_SWEEP_ATTACK) {
+                        e.setCancelled(true);
+                    }
+     */
+
+    @EventHandler
+    public void onHeartAttack(EntityDamageByEntityEvent e){
+        if(e.getEntity().getType() == EntityType.ENDER_CRYSTAL){
+            EnderCrystal ec = (EnderCrystal) e.getEntity();
+            for(Faction f : factions.values()){
+                if(ec.getLocation().getBlockX() > f.getHeart().getX() - 4 && ec.getLocation().getBlockX() < f.getHeart().getX() + 4 && ec.getLocation().getBlockY() > 41 && ec.getLocation().getY() < 49 && ec.getLocation().getBlockZ() > f.getHeart().getZ() - 4 && ec.getLocation().getBlockZ() < f.getHeart().getZ() + 4){
+                        if(e.getDamager().getType() == EntityType.PLAYER) {
+                            Player p = (Player) e.getDamager();
+                            if (f.getOwner().equals(p.getUniqueId()) || f.members.contains(p.getUniqueId())) {
+                                new Title("§8[§6Gildie§8] §cNie mozesz zaatakowac serca gildii", Title.Type.ACTIONBAR, 5, 30, 5).show(p);
+                            } else {
+                                f.hp -= e.getFinalDamage();
+                                f.bossbar.setProgress(f.hp / ((f.level + 1) * 100));
+                                f.bossbar.setTitle("Gildia " + f.tag + " - " + f.name + "    " + ((int)f.hp) + "/" + ((f.level + 1) * 100) + "HP" + " (Poziom " + f.level + ")");
+                                p.sendMessage("hp: " + f.hp);
+                            }
+                        } else {
+                            Bukkit.getServer().getLogger().info("hanled!");
+                            f.hp -= e.getFinalDamage();
+                            f.bossbar.setProgress(f.hp / ((f.level + 1) * 100));
+                            f.bossbar.setTitle("Gildia " + f.tag + " - " + f.name + "    " + ((int)f.hp) + "/" + ((f.level + 1) * 100) + "HP" + " (Poziom " + f.level + ")");
+                        }
+                    e.setCancelled(true);
+                }
+
+                break;
+            }
+        }
+    }
+
+
+
+
+
+/*
+    @EventHandler
+    public void onHeartOtherAttacks(EntityDamageByBlockEvent){
+
+    }
+
+ */
+
+
+
+
+
+    @EventHandler
+    public void onPlayerJoin(PlayerJoinEvent e){
+        Player p = e.getPlayer();
+        for(Faction f : getAll()){
+            if(f.isAtLocation(p.getLocation())){
+                if(!f.owner.equals(p.getUniqueId()) && !f.members.contains(p.getUniqueId())) {
+                    f.bossbar.addPlayer(p);
+                }
+            }
+        }
+
+    }
 
 
 
