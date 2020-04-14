@@ -2,16 +2,85 @@ package icraft.easyhc.Essentials;
 
 import icraft.easyhc.Main;
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
+import org.bukkit.boss.BarColor;
+import org.bukkit.boss.BarStyle;
+import org.bukkit.boss.BossBar;
+import org.bukkit.entity.Item;
+import org.bukkit.event.Event;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
+import org.bukkit.event.block.Action;
+import org.bukkit.event.player.PlayerDropItemEvent;
+import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.ShapedRecipe;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.Plugin;
+import org.bukkit.scheduler.BukkitScheduler;
 
-public class Grenade extends Main {
+import java.text.DecimalFormat;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
+
+public class Grenade implements Listener {
     //private static Plugin plugin;
-    public static Plugin plugin = getPlugin(Main.class);
+    public static Plugin plugin = Main.getPlugin(Main.class);
+    static HashMap<Grenade, Integer> tasks = new HashMap<>();
+    static HashMap<Grenade, NamespacedKey> bossbars = new HashMap<>();
+    static HashMap<Integer, Item> thrownGrenades = new HashMap<>();
+
+    //private AtomicReference<Boolean> isThrown = new AtomicReference<>(false);
+
+    public Grenade() {
+        plugin.getServer().getPluginManager().registerEvents(this, plugin);
+        registerRecipes();
+    }
+
+
+
+    public Grenade(PlayerInteractEvent evt) {
+        AtomicReference<PlayerInteractEvent> e = new AtomicReference<>(evt);
+        double maxTimeToExplode = 4.2;
+        double minTimeToExplode = 3.2;
+        double timeToExplode = ((int) (((Math.random() * ((maxTimeToExplode - minTimeToExplode) + 1)) + minTimeToExplode) * 10) / 10.0);
+        AtomicReference<Double> remainingTimeToExplode = new AtomicReference<>(timeToExplode);
+        NamespacedKey key = null;
+        do {
+            key = NamespacedKey.minecraft(UUID.randomUUID().toString());
+        } while (bossbars.containsValue(key));
+        bossbars.put(this, key);
+        BossBar bossbar = Bukkit.createBossBar(key, "Granat wybuchnie za: " + timeToExplode + "s", BarColor.RED, BarStyle.SOLID);
+        bossbar.addPlayer(e.get().getPlayer());
+        tasks.put(this, Bukkit.getServer().getScheduler().scheduleSyncRepeatingTask(plugin, () -> {
+            remainingTimeToExplode.updateAndGet(v -> v - 0.1);
+            if (remainingTimeToExplode.get() > 0) {
+                bossbar.setProgress(remainingTimeToExplode.get() / timeToExplode);
+                bossbar.setTitle("Granat wybuchnie za: " + (((int) (remainingTimeToExplode.get() * 10)) / 10.0) + "s");
+            } else {
+                Bukkit.removeBossBar(bossbars.get(this));
+                bossbar.removeAll();
+                if (!thrownGrenades.containsKey(tasks.get(this))) {
+                    e.get().getPlayer().getWorld().createExplosion(e.get().getPlayer().getLocation(), 50F, false);
+                } else {
+                    Location location = thrownGrenades.get(tasks.get(this)).getLocation();
+                    location.getWorld().createExplosion(location, 50F, false);
+                }
+                Bukkit.getServer().getScheduler().cancelTask(tasks.get(this));
+            }
+        }, 2L, 2L));
+        ArrayList<String> lore = new ArrayList<>();
+        lore.add("§cOdbezpieczony!");
+        ItemMeta meta = e.get().getItem().getItemMeta();
+        meta.setLore(lore);
+        meta.setLocalizedName(tasks.get(this) + "");
+        e.get().getItem().setItemMeta(meta);
+    }
+
 
     public static void registerRecipes() {
         // Our custom variable which we will be changing around.
@@ -26,8 +95,11 @@ public class Grenade extends Main {
         // This sets the name of the item.
         // Instead of the § symbol, you can use ChatColor.<color>
         meta.setDisplayName("§aGranat zaczepny");
-        meta.setLocalizedName("xd");
         meta.setCustomModelData(9000001);
+
+        ArrayList<String> lore = new ArrayList<>();
+        lore.add("§6Zabezpieczony");
+        meta.setLore(lore);
 
         // Set the meta of the sword to the edited meta.
         item.setItemMeta(meta);
@@ -46,6 +118,27 @@ public class Grenade extends Main {
         recipe.setIngredient('P', Material.PRISMARINE_SHARD);
 
         Bukkit.addRecipe(recipe);
+    }
+
+
+    @EventHandler
+    public void onGrenadeUnlock(PlayerInteractEvent e) {
+        if (e.getItem().getItemMeta().getDisplayName().equals("§aGranat zaczepny") && (e.getAction() == Action.RIGHT_CLICK_BLOCK || e.getAction() == Action.RIGHT_CLICK_AIR)) {
+            new Grenade(e);
+        }
+    }
+
+    @EventHandler
+    public void onUnlockedGrenadeThrow(PlayerDropItemEvent e){
+        if(e.getItemDrop().getItemStack().getType() == Material.TNT && e.getItemDrop().getItemStack().getItemMeta().getDisplayName().equals("§aGranat zaczepny")){
+            ItemMeta meta = e.getItemDrop().getItemStack().getItemMeta();
+            ArrayList<String> lore = new ArrayList<>();
+            lore.addAll(meta.getLore());
+            if(lore.get(0).equals("§cOdbezpieczony!")) {
+                thrownGrenades.put(Integer.parseInt(meta.getLocalizedName()), e.getItemDrop());
+                e.getItemDrop().setVelocity(e.getItemDrop().getVelocity().multiply(3));
+            }
+        }
     }
 
 }

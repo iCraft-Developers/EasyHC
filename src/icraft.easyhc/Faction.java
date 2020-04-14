@@ -181,7 +181,7 @@ public class Faction implements Listener {
 
 
     public void destroy() throws Throwable {
-        Bukkit.getWorld("EasyHC").createExplosion(new Location(Bukkit.getWorld("EasyHC"), this.getHeart().getX(), 45, this.getHeart().getZ()),30F + (10 * (this.level + 1)));
+        Bukkit.getWorld("EasyHC").createExplosion(new Location(Bukkit.getWorld("EasyHC"), this.getHeart().getX(), 45, this.getHeart().getZ()),600F + (200 * (this.level + 1)), true, true);
         Bukkit.getServer().broadcastMessage(String.join("\n", formatInfoAsMessage("§cGildia " + this.tag + " - " + this.name + " zostala zniszczona!")));
         for(UUID uuid : this.members) {
             if(Bukkit.getPlayer(uuid) != null && Bukkit.getPlayer(uuid).isOnline()) {
@@ -385,7 +385,7 @@ public void checkIfEnteredOrLeavedFaction(Player p, Location from, Location to){
         for(Faction f : Faction.getAll()){
             if(f.isAtLocation(e.getRightClicked().getLocation())){
                 if(!f.isAllowed(p)){
-                    new Title("§8[§6Gildie§8] §cNie mozesz wchodzic w interacje", Title.Type.ACTIONBAR, 5, 30, 5).show(p);
+                    new Title("§8[§6Gildie§8] §cNie mozesz wchodzic w interakcje", Title.Type.ACTIONBAR, 5, 30, 5).show(p);
                     e.setCancelled(true);
                 }
                 break;

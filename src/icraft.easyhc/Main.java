@@ -51,7 +51,7 @@ public class Main extends JavaPlugin implements Listener {
         new RandomTP(this);
         new DatabaseBuffer(this);
         new Faction(this);
-        Grenade.registerRecipes();
+        new Grenade();
 
 
         FactionsCommand.factionsArgs.put("stworz", "§6Tworzy nowa gildie.");
