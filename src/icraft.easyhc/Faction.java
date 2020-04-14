@@ -29,14 +29,13 @@ import org.bukkit.event.entity.EntityDamageByBlockEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
-import org.bukkit.event.player.PlayerInteractEvent;
-import org.bukkit.event.player.PlayerJoinEvent;
-import org.bukkit.event.player.PlayerMoveEvent;
-import org.bukkit.event.player.PlayerTeleportEvent;
+import org.bukkit.event.player.*;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.util.*;
+
+import static icraft.easyhc.Main.formatInfoAsMessage;
 import static icraft.easyhc.Main.setServerError;
 
 public class Faction implements Listener {
@@ -86,8 +85,8 @@ public class Faction implements Listener {
         this.bossbar.setProgress(this.hp / ((this.level + 1) * 100));
     }
 
-    void addMembers(UUID...uuid){
-        this.members.addAll(members);
+    void addMembers(UUID...uuids){
+        this.members.addAll(Arrays.asList(uuids));
     }
 
     String getTag(){
@@ -165,17 +164,38 @@ public class Faction implements Listener {
     }
 
     public void remove() throws Throwable {
-        Collection<Entity> entities = Bukkit.getWorld("EasyHC").getNearbyEntities(new Location(Bukkit.getWorld("EasyHC"), this.heart.getX(), 45, this.heart.getZ()),3,3,3);
-        for(Entity entity : entities){
-            if(entity.getType() == EntityType.ENDER_CRYSTAL){
+        Collection<Entity> entities = Bukkit.getWorld("EasyHC").getNearbyEntities(new Location(Bukkit.getWorld("EasyHC"), this.heart.getX(), 45, this.heart.getZ()), 3, 3, 3);
+        for (Entity entity : entities) {
+            if (entity.getType() == EntityType.ENDER_CRYSTAL) {
                 entity.remove();
             }
         }
 
+        this.bossbar.removeAll();
+
         factions.remove(this.tag);
         DatabaseBuffer.buffer.add(new BufferAction(BufferAction.ActionType.REMOVE_FACTION, "tag=\"" + this.tag + "\""));
         DatabaseBuffer.buffer.add(new BufferAction(BufferAction.ActionType.REMOVE_MEMBER, "tag=\"" + this.tag + "\""));
+    }
+
+
+
+    public void destroy() throws Throwable {
+        Bukkit.getWorld("EasyHC").createExplosion(new Location(Bukkit.getWorld("EasyHC"), this.getHeart().getX(), 45, this.getHeart().getZ()),30F + (10 * (this.level + 1)));
+        Bukkit.getServer().broadcastMessage(String.join("\n", formatInfoAsMessage("§cGildia " + this.tag + " - " + this.name + " zostala zniszczona!")));
+        for(UUID uuid : this.members) {
+            if(Bukkit.getPlayer(uuid) != null && Bukkit.getPlayer(uuid).isOnline()) {
+                new Title("§c" + "GILDIA ZNISZCZONA!", Title.Type.TITLE, 5, 30, 5).show(Bukkit.getPlayer(uuid));
+                new Title("§c" + "Gildia do ktorej przynalezales zostala zniszczona!", Title.Type.SUBTITLE, 5, 30, 5).show(Bukkit.getPlayer(uuid));
+            }
         }
+        if(Bukkit.getPlayer(this.owner) != null && Bukkit.getPlayer(this.owner).isOnline()){
+            new Title("§c" + "GILDIA ZNISZCZONA!", Title.Type.TITLE, 5, 30, 5).show(Bukkit.getPlayer(this.owner));
+            new Title("§c" + "Twoja gildia zostala zniszczona!", Title.Type.SUBTITLE, 5, 30, 5).show(Bukkit.getPlayer(this.owner));
+        }
+        this.remove();
+    }
+
 
     public void extend() throws Throwable {
         this.level++;
@@ -277,7 +297,7 @@ public void checkIfEnteredOrLeavedFaction(Player p, Location from, Location to){
         } else {
             new Title("§8" + toTag, Title.Type.TITLE, 5, 30, 5).show(p);
             new Title("§8" + Faction.get(toTag).getName(), Title.Type.SUBTITLE, 5, 30, 5).show(p);
-            if(!Faction.get(toTag).owner.equals(p.getUniqueId()) && !Faction.get(toTag).members.contains(p.getUniqueId())) {
+            if(!Faction.get(toTag).isAllowed(p)) {
                 Faction.get(toTag).bossbar.addPlayer(p);
             }
         }
@@ -359,6 +379,22 @@ public void checkIfEnteredOrLeavedFaction(Player p, Location from, Location to){
 
 
 
+    @EventHandler
+    public void onPlayerInteractEntityEvent(PlayerInteractEntityEvent e){
+        Player p = e.getPlayer();
+        for(Faction f : Faction.getAll()){
+            if(f.isAtLocation(e.getRightClicked().getLocation())){
+                if(!f.isAllowed(p)){
+                    new Title("§8[§6Gildie§8] §cNie mozesz wchodzic w interacje", Title.Type.ACTIONBAR, 5, 30, 5).show(p);
+                    e.setCancelled(true);
+                }
+                break;
+            }
+        }
+    }
+
+
+
     //TODO: Dodac blokade dodawania endercystalow
     //TODO: Zrobic zabezpieczenie zeby pluginy nie niszczyly serca jak np komenda /mobkill
 
@@ -369,39 +405,52 @@ public void checkIfEnteredOrLeavedFaction(Player p, Location from, Location to){
      */
 
     @EventHandler
-    public void onEntityDamageByEntity(EntityDamageByEntityEvent e){
+    public void onEntityDamageByEntity(EntityDamageByEntityEvent e) throws Throwable {
         if(!(e.getEntity() instanceof Monster)) {
             for (Faction f : factions.values()) {
                 if(e.getEntity().getType() == EntityType.ENDER_CRYSTAL) {
                     EnderCrystal ec = (EnderCrystal) e.getEntity();
-                    if (ec.getLocation().getBlockX() > f.getHeart().getX() - 4 && ec.getLocation().getBlockX() < f.getHeart().getX() + 4 && ec.getLocation().getBlockY() > 41 && ec.getLocation().getY() < 49 && ec.getLocation().getBlockZ() > f.getHeart().getZ() - 4 && ec.getLocation().getBlockZ() < f.getHeart().getZ() + 4) {
-                        if (e.getDamager().getType() == EntityType.PLAYER) {
-                            Player p = (Player) e.getDamager();
-                            if (f.isAllowed(p)) {
-                                new Title("§8[§6Gildie§8] §cNie mozesz zaatakowac serca gildii", Title.Type.ACTIONBAR, 5, 30, 5).show(p);
+                    if(f.isAtLocation(e.getEntity().getLocation())) {
+                        if (ec.getLocation().getBlockX() > f.getHeart().getX() - 4 && ec.getLocation().getBlockX() < f.getHeart().getX() + 4 && ec.getLocation().getBlockY() > 41 && ec.getLocation().getY() < 49 && ec.getLocation().getBlockZ() > f.getHeart().getZ() - 4 && ec.getLocation().getBlockZ() < f.getHeart().getZ() + 4) {
+                            if (e.getDamager().getType() == EntityType.PLAYER) {
+                                Player p = (Player) e.getDamager();
+                                if (f.isAllowed(p)) {
+                                    new Title("§8[§6Gildie§8] §cNie mozesz zaatakowac serca gildii", Title.Type.ACTIONBAR, 5, 30, 5).show(p);
+                                } else {
+                                    f.hp -= e.getFinalDamage();
+                                    if (!(f.hp > 0)) {
+                                        f.destroy();
+                                    } else {
+                                        f.bossbar.setProgress(f.hp / ((f.level + 1) * 100));
+                                        f.bossbar.setTitle("Gildia " + f.tag + " - " + f.name + "    " + ((int) f.hp) + "/" + ((f.level + 1) * 100) + "HP" + " (Poziom " + f.level + ")");
+                                    }
+                                }
                             } else {
                                 f.hp -= e.getFinalDamage();
-                                f.bossbar.setProgress(f.hp / ((f.level + 1) * 100));
-                                f.bossbar.setTitle("Gildia " + f.tag + " - " + f.name + "    " + ((int) f.hp) + "/" + ((f.level + 1) * 100) + "HP" + " (Poziom " + f.level + ")");
-                                p.sendMessage("hp: " + f.hp);
+                                if (!(f.hp > 0)) {
+                                    f.destroy();
+                                } else {
+                                    f.bossbar.setProgress(f.hp / ((f.level + 1) * 100));
+                                    f.bossbar.setTitle("Gildia " + f.tag + " - " + f.name + "    " + ((int) f.hp) + "/" + ((f.level + 1) * 100) + "HP" + " (Poziom " + f.level + ")");
+                                }
                             }
-                        } else {
-                            Bukkit.getServer().getLogger().info("hanled!");
-                            f.hp -= e.getFinalDamage();
-                            f.bossbar.setProgress(f.hp / ((f.level + 1) * 100));
-                            f.bossbar.setTitle("Gildia " + f.tag + " - " + f.name + "    " + ((int) f.hp) + "/" + ((f.level + 1) * 100) + "HP" + " (Poziom " + f.level + ")");
+                            e.setDamage(0);
+                            e.setCancelled(true);
                         }
-                        e.setCancelled(true);
                     }
+                    break;
                 } else {
                     if (e.getDamager().getType() == EntityType.PLAYER) {
-                        Player p = (Player) e.getDamager();
-                        if (f.isAllowed(p)) {
-                            new Title("§8[§6Gildie§8] §cMozesz atakowac tylko agresywne moby i serce gildii", Title.Type.ACTIONBAR, 5, 30, 5).show(p);
+                        if(f.isAtLocation(e.getEntity().getLocation())) {
+                            Player p = (Player) e.getDamager();
+                            if (!f.isAllowed(p)) {
+                                new Title("§8[§6Gildie§8] §cMozesz atakowac tylko agresywne moby i serce gildii", Title.Type.ACTIONBAR, 5, 30, 5).show(p);
+                                e.setCancelled(true);
+                            }
+                            break;
                         }
-                    }
+                    } else break;
                 }
-                break;
             }
         }
     }

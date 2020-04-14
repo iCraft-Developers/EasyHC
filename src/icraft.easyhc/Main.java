@@ -6,16 +6,15 @@ import icraft.gui.Chest.Menu;
 import icraft.gui.Chest.Option;
 import icraft.easyhc.sql.SQLConnection;
 import org.apache.commons.lang.ArrayUtils;
-import org.bukkit.Bukkit;
-import org.bukkit.Material;
-import org.bukkit.NamespacedKey;
-import org.bukkit.OfflinePlayer;
+import org.bukkit.*;
 import org.bukkit.boss.BarColor;
 import org.bukkit.boss.BarFlag;
 import org.bukkit.boss.BarStyle;
 import org.bukkit.boss.BossBar;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Entity;
+import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -32,6 +31,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.sql.ResultSet;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.UUID;
 
 //import static icraft.easyhc.Faction.factions;
@@ -115,11 +115,38 @@ public class Main extends JavaPlugin implements Listener {
     for(Player p : Bukkit.getOnlinePlayers()){
         for(Faction f : Faction.getAll()){
             if(f.isAtLocation(p.getLocation())){
-                f.getBossbar().addPlayer(p);
+                if(!f.isAllowed(p)) {
+                    f.getBossbar().addPlayer(p);
+                }
                 break;
             }
         }
     }
+
+
+for(Faction f : Faction.getAll()){
+    int crystals = 0;
+    Collection<Entity> entitites = Bukkit.getWorld("EasyHC").getNearbyEntities(new Location(Bukkit.getWorld("EasyHC"), f.getHeart().getX(), 45, f.getHeart().getZ()),3,3,3);
+        for(Entity entity : entitites){
+        if(entity.getType() == EntityType.ENDER_CRYSTAL) crystals++;
+    }
+    if(crystals == 0){
+        for(int x = f.getHeart().getX() - 3;x < f.getHeart().getX() + 3;x++){
+            for(int y = 42;y < 49;y++){
+                for(int z = f.getHeart().getZ() - 3;z < f.getHeart().getZ() + 3;z++){
+                    Bukkit.getWorld("EasyHC").getBlockAt(new Location(Bukkit.getWorld("EasyHC"), x, y, z)).setType(Material.AIR);
+                }
+            }
+        }
+        Bukkit.getWorld("EasyHC").spawnEntity(new Location(Bukkit.getWorld("EasyHC"), f.getHeart().getX(), 45, f.getHeart().getZ()),EntityType.ENDER_CRYSTAL);
+    } else if(crystals > 1){
+        entitites.removeIf(entity -> entity.getType() == EntityType.ENDER_CRYSTAL);
+        Bukkit.getWorld("EasyHC").spawnEntity(new Location(Bukkit.getWorld("EasyHC"), f.getHeart().getX(), 45, f.getHeart().getZ()),EntityType.ENDER_CRYSTAL);
+    }
+
+    }
+
+
 
 
     }

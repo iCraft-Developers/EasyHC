@@ -20,13 +20,15 @@ public class DatabaseBuffer {
             public void run() {
                 try {
                     //ResultSet results = new SQLQuery(new Connection("", "", ""), "select * from users").results();
-                    SQLConnection conn = new SQLConnection();
-                    for(BufferAction action : buffer){
-                        conn.execute(action.getQuery());
+                    if(!buffer.isEmpty()) {
+                        SQLConnection conn = new SQLConnection();
+                        for (BufferAction action : buffer) {
+                            conn.execute(action.getQuery());
+                        }
+                        conn.close();
+                        buffer = new LinkedHashSet<>();
+                        serverError = false;
                     }
-                    conn.close();
-                    buffer = new LinkedHashSet<>();
-                    serverError = false;
                 } catch(Exception e) {
                     e.printStackTrace();
                     setServerError();
