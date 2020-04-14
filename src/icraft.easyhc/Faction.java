@@ -21,10 +21,7 @@ import org.bukkit.boss.BarColor;
 import org.bukkit.boss.BarFlag;
 import org.bukkit.boss.BarStyle;
 import org.bukkit.boss.BossBar;
-import org.bukkit.entity.EnderCrystal;
-import org.bukkit.entity.Entity;
-import org.bukkit.entity.EntityType;
-import org.bukkit.entity.Player;
+import org.bukkit.entity.*;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
@@ -35,6 +32,8 @@ import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.event.player.PlayerTeleportEvent;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.util.*;
@@ -61,6 +60,11 @@ public class Faction implements Listener {
     public Faction(String tag, String name, UUID owner, Location2D heart, int level, boolean isNewlyCreated, UUID...members) throws Exception {
         this(tag, name, owner, heart, level, isNewlyCreated);
         addMembers(members);
+    }
+
+
+    public BossBar getBossbar() {
+        return bossbar;
     }
 
     public Faction(String tag, String name, UUID owner, Location2D heart, int level, boolean isNewlyCreated) throws Exception {
@@ -215,6 +219,19 @@ public class Faction implements Listener {
 
 
 
+    @EventHandler
+    public void onTeleportToFaction(PlayerTeleportEvent e){
+        Location from = e.getFrom();
+        Location to = e.getTo();
+        if(from == to) return;
+        Player p = e.getPlayer();
+        UUID uuid = p.getUniqueId();
+
+        checkIfEnteredOrLeavedFaction(p, from, to);
+    }
+
+
+
 
 
 
@@ -226,43 +243,46 @@ public class Faction implements Listener {
         if(from == to) return;
         Player p = e.getPlayer();
         UUID uuid = p.getUniqueId();
-        String fromTag = null;
-        String toTag = null;
-
-        for (Faction faction : Faction.getAll()) {
-            if(fromTag == null && faction.isAtLocation(from)) {
-                fromTag = faction.getTag();
-                //p.sendMessage(formatInfoAsMessage("Opuszczasz teren gildii: " + key + " - " + factions.get(key).getName()));
-            }
-
-            if(toTag == null && faction.isAtLocation(to)) {
-                toTag = faction.getTag();
-                //p.sendMessage(formatInfoAsMessage("Wchodzisz na teren gildii: " + tag + " - " + faction.getName()));
-
-            }
-
-            if(fromTag != null && toTag != null) break;
-        }
-
-        if(!Objects.equals(fromTag, toTag)) {
-            if(toTag == null) {
-                new Title("§8Pustkowie", Title.Type.TITLE, 5, 30, 5).show(p);
-                new Title("", Title.Type.SUBTITLE, 5, 30, 5).show(p);
-                Faction.get(fromTag).bossbar.removePlayer(p);
-            }
-            if(toTag != null) {
-                new Title("§8" + toTag, Title.Type.TITLE, 5, 30, 5).show(p);
-                new Title("§8" + Faction.get(toTag).getName(), Title.Type.SUBTITLE, 5, 30, 5).show(p);
-                if(!Faction.get(toTag).owner.equals(p.getUniqueId()) && !Faction.get(toTag).members.contains(p.getUniqueId())) {
-                    Faction.get(toTag).bossbar.addPlayer(p);
-                }
-            }
-        }
+        checkIfEnteredOrLeavedFaction(p, from, to);
     }
 
 
 
 
+
+public void checkIfEnteredOrLeavedFaction(Player p, Location from, Location to){
+    String fromTag = null;
+    String toTag = null;
+
+    for (Faction faction : Faction.getAll()) {
+        if(fromTag == null && faction.isAtLocation(from)) {
+            fromTag = faction.getTag();
+            //p.sendMessage(formatInfoAsMessage("Opuszczasz teren gildii: " + key + " - " + factions.get(key).getName()));
+        }
+
+        if(toTag == null && faction.isAtLocation(to)) {
+            toTag = faction.getTag();
+            //p.sendMessage(formatInfoAsMessage("Wchodzisz na teren gildii: " + tag + " - " + faction.getName()));
+
+        }
+
+        if(fromTag != null && toTag != null) break;
+    }
+
+    if(!Objects.equals(fromTag, toTag)) {
+        if(toTag == null) {
+            new Title("§8Pustkowie", Title.Type.TITLE, 5, 30, 5).show(p);
+            new Title("", Title.Type.SUBTITLE, 5, 30, 5).show(p);
+            Faction.get(fromTag).bossbar.removePlayer(p);
+        } else {
+            new Title("§8" + toTag, Title.Type.TITLE, 5, 30, 5).show(p);
+            new Title("§8" + Faction.get(toTag).getName(), Title.Type.SUBTITLE, 5, 30, 5).show(p);
+            if(!Faction.get(toTag).owner.equals(p.getUniqueId()) && !Faction.get(toTag).members.contains(p.getUniqueId())) {
+                Faction.get(toTag).bossbar.addPlayer(p);
+            }
+        }
+    }
+}
 
 
 
@@ -349,30 +369,38 @@ public class Faction implements Listener {
      */
 
     @EventHandler
-    public void onHeartAttack(EntityDamageByEntityEvent e){
-        if(e.getEntity().getType() == EntityType.ENDER_CRYSTAL){
-            EnderCrystal ec = (EnderCrystal) e.getEntity();
-            for(Faction f : factions.values()){
-                if(ec.getLocation().getBlockX() > f.getHeart().getX() - 4 && ec.getLocation().getBlockX() < f.getHeart().getX() + 4 && ec.getLocation().getBlockY() > 41 && ec.getLocation().getY() < 49 && ec.getLocation().getBlockZ() > f.getHeart().getZ() - 4 && ec.getLocation().getBlockZ() < f.getHeart().getZ() + 4){
-                        if(e.getDamager().getType() == EntityType.PLAYER) {
+    public void onEntityDamageByEntity(EntityDamageByEntityEvent e){
+        if(!(e.getEntity() instanceof Monster)) {
+            for (Faction f : factions.values()) {
+                if(e.getEntity().getType() == EntityType.ENDER_CRYSTAL) {
+                    EnderCrystal ec = (EnderCrystal) e.getEntity();
+                    if (ec.getLocation().getBlockX() > f.getHeart().getX() - 4 && ec.getLocation().getBlockX() < f.getHeart().getX() + 4 && ec.getLocation().getBlockY() > 41 && ec.getLocation().getY() < 49 && ec.getLocation().getBlockZ() > f.getHeart().getZ() - 4 && ec.getLocation().getBlockZ() < f.getHeart().getZ() + 4) {
+                        if (e.getDamager().getType() == EntityType.PLAYER) {
                             Player p = (Player) e.getDamager();
-                            if (f.getOwner().equals(p.getUniqueId()) || f.members.contains(p.getUniqueId())) {
+                            if (f.isAllowed(p)) {
                                 new Title("§8[§6Gildie§8] §cNie mozesz zaatakowac serca gildii", Title.Type.ACTIONBAR, 5, 30, 5).show(p);
                             } else {
                                 f.hp -= e.getFinalDamage();
                                 f.bossbar.setProgress(f.hp / ((f.level + 1) * 100));
-                                f.bossbar.setTitle("Gildia " + f.tag + " - " + f.name + "    " + ((int)f.hp) + "/" + ((f.level + 1) * 100) + "HP" + " (Poziom " + f.level + ")");
+                                f.bossbar.setTitle("Gildia " + f.tag + " - " + f.name + "    " + ((int) f.hp) + "/" + ((f.level + 1) * 100) + "HP" + " (Poziom " + f.level + ")");
                                 p.sendMessage("hp: " + f.hp);
                             }
                         } else {
                             Bukkit.getServer().getLogger().info("hanled!");
                             f.hp -= e.getFinalDamage();
                             f.bossbar.setProgress(f.hp / ((f.level + 1) * 100));
-                            f.bossbar.setTitle("Gildia " + f.tag + " - " + f.name + "    " + ((int)f.hp) + "/" + ((f.level + 1) * 100) + "HP" + " (Poziom " + f.level + ")");
+                            f.bossbar.setTitle("Gildia " + f.tag + " - " + f.name + "    " + ((int) f.hp) + "/" + ((f.level + 1) * 100) + "HP" + " (Poziom " + f.level + ")");
                         }
-                    e.setCancelled(true);
+                        e.setCancelled(true);
+                    }
+                } else {
+                    if (e.getDamager().getType() == EntityType.PLAYER) {
+                        Player p = (Player) e.getDamager();
+                        if (f.isAllowed(p)) {
+                            new Title("§8[§6Gildie§8] §cMozesz atakowac tylko agresywne moby i serce gildii", Title.Type.ACTIONBAR, 5, 30, 5).show(p);
+                        }
+                    }
                 }
-
                 break;
             }
         }
@@ -380,6 +408,21 @@ public class Faction implements Listener {
 
 
 
+
+    public boolean isMember(Player p) {
+        if(this.members.contains(p.getUniqueId())) return true;
+        return false;
+    }
+
+    public boolean isOwner(Player p){
+        if(this.owner.equals(p.getUniqueId())) return true;
+        return false;
+    }
+
+    public boolean isAllowed(Player p){
+        if(this.isOwner(p) || this.isMember(p)) return true;
+        return false;
+    }
 
 
 /*

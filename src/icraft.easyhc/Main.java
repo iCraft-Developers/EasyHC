@@ -1,5 +1,6 @@
 package icraft.easyhc;
 
+import icraft.easyhc.Essentials.Giveaway;
 import icraft.easyhc.Essentials.Grenade;
 import icraft.gui.Chest.Menu;
 import icraft.gui.Chest.Option;
@@ -47,10 +48,10 @@ public class Main extends JavaPlugin implements Listener {
     public void onEnable() {
         pm = getServer().getPluginManager();
         pm.registerEvents(this, this);
-        Grenade.registerRecipes();
         new RandomTP(this);
         new DatabaseBuffer(this);
         new Faction(this);
+        Grenade.registerRecipes();
 
 
         FactionsCommand.factionsArgs.put("stworz", "§6Tworzy nowa gildie.");
@@ -111,10 +112,23 @@ public class Main extends JavaPlugin implements Listener {
         }
 
 
+    for(Player p : Bukkit.getOnlinePlayers()){
+        for(Faction f : Faction.getAll()){
+            if(f.isAtLocation(p.getLocation())){
+                f.getBossbar().addPlayer(p);
+                break;
+            }
+        }
+    }
+
+
     }
 
     public void onDisable() {
-
+        Bukkit.removeRecipe(NamespacedKey.minecraft("offensive_grenade"));
+        for(Faction f : Faction.getAll()){
+            f.getBossbar().removeAll();
+        }
     }
 
 
