@@ -37,6 +37,4 @@ public class DatabaseBuffer {
         }.runTaskTimer(plugin, 600L,100L);
     }
 
-
-
 }

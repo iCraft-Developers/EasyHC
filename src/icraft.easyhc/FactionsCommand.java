@@ -1,13 +1,20 @@
 package icraft.easyhc;
 
+import com.sk89q.worldedit.antlr4.runtime.misc.Utils;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
+import java.lang.reflect.Array;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
+import java.util.UUID;
 
+import static icraft.easyhc.Faction.factionChat;
 import static icraft.easyhc.Main.formatInfoAsMessage;
 
 public class FactionsCommand {
@@ -197,14 +204,67 @@ public class FactionsCommand {
     }
 
 
-    public static void info(Player p, String...args){
+    public static void info(Player p, String...args) {
+        if (args.length > 2) {
+            p.sendMessage(formatInfoAsMessage("Podales zbyt duzo argumentow!", "Poprawne uzycie: /g info [tag]"));
+            return;
+        }
 
+        Faction f = null;
+        if (args.length < 2) {
+            for (Faction faction : Faction.getAll()) {
+                if (faction.isAllowed(p)) {
+                    f = faction;
+                    break;
+                }
+            }
+            if(f == null) {
+                p.sendMessage(formatInfoAsMessage("Nie posiadasz ani nie jestes sojusznikiem zadnej gildii!"));
+                return;
+            }
+        } else {
+            if (Faction.factions.containsKey(args[1].toUpperCase())) {
+                f = Faction.get(args[1].toUpperCase());
+            } else {
+                p.sendMessage(formatInfoAsMessage("Gildia o podanym tagu nie istnieje!"));
+            }
+        }
+
+        if(f != null){
+            ArrayList<String> members = new ArrayList<>();
+            if(f.getMembers().size() > 0) {
+                for (UUID uuid : f.getMembers()) {
+                    members.add(Bukkit.getOfflinePlayer(uuid).getName());
+                }
+            } else {
+                members.add("Brak sojusznikow");
+            }
+
+            p.sendMessage(formatInfoAsMessage(1, "Informacje o gildii: " + f.getTag(), "Tag: " + f.getTag(), "Nazwa: " + f.getName(), "Poziom: " + f.getLevel(), "Koordynaty: " + f.getHeart().getX() + ", " + f.getHeart().getZ(), "Wlasciciel: " + Bukkit.getOfflinePlayer(f.getOwner()).getName(), "Sojusznicy: " + String.join(", ", members), "HP: " + (((int) (f.getHp() * 10)) / 10) + "/" + ((f.getLevel() + 1) * 100) + "HP"));
+        }
     }
 
 
 
-    public static void chat(Player p, String...args){
-
+    public static void chat(Player p, String...args) {
+        if (args.length > 1) {
+            p.sendMessage(formatInfoAsMessage("Podales zbyt duzo argumentow!", "Poprawne uzycie: /g chat"));
+            return;
+        } else {
+            if (factionChat.containsKey(p.getUniqueId())) {
+                factionChat.remove(p.getUniqueId());
+                p.sendMessage(formatInfoAsMessage("Od teraz piszesz na czacie globalnym."));
+            } else {
+                for (Faction f : Faction.getAll()) {
+                    if (f.isAllowed(p)) {
+                        factionChat.put(p.getUniqueId(), f.getTag());
+                        p.sendMessage(formatInfoAsMessage("Od teraz piszesz na czacie gildijnym."));
+                    }
+                    return;
+                }
+                p.sendMessage(formatInfoAsMessage("Nie posiadasz ani nie jestes sojusznikiem zadnej gildii!"));
+            }
+        }
     }
 
 

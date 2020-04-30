@@ -1,16 +1,16 @@
 package icraft.easyhc;
 
+import com.comphenix.protocol.ProtocolLibrary;
+import com.comphenix.protocol.ProtocolManager;
+import icraft.easyhc.Essentials.AntiProfanity;
 import icraft.easyhc.Essentials.Giveaway;
 import icraft.easyhc.Essentials.Grenade;
+import icraft.easyhc.Server.ServerInfo;
 import icraft.gui.Chest.Menu;
 import icraft.gui.Chest.Option;
 import icraft.easyhc.sql.SQLConnection;
 import org.apache.commons.lang.ArrayUtils;
 import org.bukkit.*;
-import org.bukkit.boss.BarColor;
-import org.bukkit.boss.BarFlag;
-import org.bukkit.boss.BarStyle;
-import org.bukkit.boss.BossBar;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Entity;
@@ -22,7 +22,6 @@ import org.bukkit.event.player.PlayerLoginEvent;
 import org.bukkit.event.server.TabCompleteEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
@@ -32,6 +31,7 @@ import java.lang.reflect.Method;
 import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Objects;
 import java.util.UUID;
 
 //import static icraft.easyhc.Faction.factions;
@@ -43,6 +43,7 @@ public class Main extends JavaPlugin implements Listener {
     public static PluginManager pm;
     ArrayList<String> argsCompletions;
     public static boolean serverError = false;
+    public static ProtocolManager protocolManager;
 
 
     public void onEnable() {
@@ -52,6 +53,11 @@ public class Main extends JavaPlugin implements Listener {
         new DatabaseBuffer(this);
         new Faction(this);
         new Grenade();
+        new Giveaway();
+        protocolManager = ProtocolLibrary.getProtocolManager();
+        new ServerInfo();
+        new Authentication();
+        new AntiProfanity();
 
 
         FactionsCommand.factionsArgs.put("stworz", "§6Tworzy nowa gildie.");
@@ -93,7 +99,7 @@ public class Main extends JavaPlugin implements Listener {
             SQLConnection conn = new SQLConnection();
             ResultSet results = conn.getResults("select * from factions");
             while (results.next()) {
-                new Faction(results.getString("tag"), results.getString("name"), UUID.fromString(results.getString("owner")), new Location2D(results.getInt("x"), results.getInt("z")), results.getInt("level"), false);
+                new Faction(results.getString("tag"), results.getString("name"), UUID.fromString(results.getString("owner")), new Location2D(results.getInt("x"), results.getInt("z")), results.getInt("level"), results.getDouble("hp"), false);
             }
             results = conn.getResults("select * from members");
             while (results.next()) {
@@ -132,7 +138,7 @@ for(Faction f : Faction.getAll()){
     }
     if(crystals == 0){
         for(int x = f.getHeart().getX() - 3;x < f.getHeart().getX() + 3;x++){
-            for(int y = 42;y < 49;y++){
+            for(int y = 43;y < 49;y++){
                 for(int z = f.getHeart().getZ() - 3;z < f.getHeart().getZ() + 3;z++){
                     Bukkit.getWorld("EasyHC").getBlockAt(new Location(Bukkit.getWorld("EasyHC"), x, y, z)).setType(Material.AIR);
                 }
@@ -155,6 +161,7 @@ for(Faction f : Faction.getAll()){
         Bukkit.removeRecipe(NamespacedKey.minecraft("offensive_grenade"));
         for(Faction f : Faction.getAll()){
             f.getBossbar().removeAll();
+            f.getProgressOfConquering().removeAll();
         }
     }
 
@@ -184,7 +191,7 @@ for(Faction f : Faction.getAll()){
         return formattedInfo;
     }
 
-    public String[] formatInfoAsMessage(int t, String... info) {
+    public static String[] formatInfoAsMessage(int t, String... info) {
         String[] infoWithoutTitle = new String[info.length - t];
         String[] title = new String[t];
         System.arraycopy(info, 0, title, 0, t);
@@ -221,6 +228,9 @@ for(Faction f : Faction.getAll()){
      */
 
 
+    public static ProtocolManager getProtocolManager() {
+        return protocolManager;
+    }
 
     @EventHandler
     public void onTabComplete(TabCompleteEvent e){
@@ -268,13 +278,15 @@ for(Faction f : Faction.getAll()){
                         p2 = p;
                     } else {
                         for (OfflinePlayer offlinePlayer : Bukkit.getOfflinePlayers()) {
-                            if (offlinePlayer.getPlayer().getName().equals(args[0])) {
-                                p2 = offlinePlayer.getPlayer();
+                            p.sendMessage(offlinePlayer.getUniqueId() + " - " + offlinePlayer.getName());
+                            if (offlinePlayer.getName() != null && offlinePlayer.getName().equals(args[0])) {
+                                p2 = null;
                                 break;
                             }
                         }
                         if (p2 == null) {
-                            p.sendMessage("Gracz " + args[0] + " nigdy nie gral na tym serwerze!");
+                            //p.sendMessage("Gracz " + args[0] + " nigdy nie gral na tym serwerze!");
+                            p.sendMessage("Funkcja nie jest jeszcze dostepna!");
                             return true;
                         }
                     }
@@ -316,6 +328,11 @@ for(Faction f : Faction.getAll()){
         return true;
     }
 
+
+
+
+
+
     /*
     @EventHandler
     public void onJoin(PlayerJoinEvent e) {
@@ -336,7 +353,7 @@ for(Faction f : Faction.getAll()){
 
     public void onJoin(PlayerLoginEvent e){
         if(serverError){
-            e.disallow(PlayerLoginEvent.Result.KICK_WHITELIST, "");
+            e.disallow(PlayerLoginEvent.Result.KICK_WHITELIST, "Na serwerze wystapil krytyczny blad. Prosimy o powiadomienie administracji.");
         }
     }
 

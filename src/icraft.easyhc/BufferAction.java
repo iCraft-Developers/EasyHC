@@ -17,7 +17,8 @@ public class BufferAction {
         REMOVE_FACTION,
         REMOVE_MEMBER,
         CHANGE_OWNER,
-        EXTEND_FACTION;
+        EXTEND_FACTION,
+        CHANGE_HP;
 
     }
 
@@ -46,6 +47,11 @@ public class BufferAction {
             case CHANGE_OWNER:
                 break;
             case EXTEND_FACTION:
+                sqlquery = new SQLQuery(SQLQuery.Command.UPDATE, "factions", args);
+                query = sqlquery.getQuery();
+                Bukkit.getLogger().info(query);
+                break;
+            case CHANGE_HP:
                 sqlquery = new SQLQuery(SQLQuery.Command.UPDATE, "factions", args);
                 query = sqlquery.getQuery();
                 Bukkit.getLogger().info(query);

@@ -1,6 +1,7 @@
 package icraft.easyhc.Essentials;
 
 import icraft.easyhc.Main;
+import icraft.gui.Title;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -11,8 +12,10 @@ import org.bukkit.boss.BossBar;
 import org.bukkit.entity.Item;
 import org.bukkit.event.Event;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
+import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.ItemStack;
@@ -22,9 +25,7 @@ import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitScheduler;
 
 import java.text.DecimalFormat;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class Grenade implements Listener {
@@ -65,10 +66,19 @@ public class Grenade implements Listener {
                 Bukkit.removeBossBar(bossbars.get(this));
                 bossbar.removeAll();
                 if (!thrownGrenades.containsKey(tasks.get(this))) {
-                    e.get().getPlayer().getWorld().createExplosion(e.get().getPlayer().getLocation(), 50F, false);
+                    ItemStack itemStack = new ItemStack(Material.TNT);
+                    ItemMeta meta = itemStack.getItemMeta();
+                    meta.setDisplayName("§aGranat zaczepny");
+                    ArrayList<String> list = new ArrayList<>(Collections.singletonList("§cOdbezpieczony!"));
+                    meta.setLore(list);
+                    meta.setLocalizedName(tasks.get(this) + "");
+                    meta.setCustomModelData(9000001);
+                    itemStack.setItemMeta(meta);
+                    e.get().getPlayer().getInventory().removeItem(itemStack);
+                    e.get().getPlayer().getWorld().createExplosion(e.get().getPlayer().getLocation(), 40F, false);
                 } else {
                     Location location = thrownGrenades.get(tasks.get(this)).getLocation();
-                    location.getWorld().createExplosion(location, 50F, false);
+                    location.getWorld().createExplosion(location, 40F, false);
                 }
                 Bukkit.getServer().getScheduler().cancelTask(tasks.get(this));
             }
@@ -79,6 +89,7 @@ public class Grenade implements Listener {
         meta.setLore(lore);
         meta.setLocalizedName(tasks.get(this) + "");
         e.get().getItem().setItemMeta(meta);
+        new Title("Wyrzuc granat zeby nie wybuch ci w dloni!", Title.Type.ACTIONBAR, 5, 30, 5).show(e.get().getPlayer());
     }
 
 
@@ -110,7 +121,7 @@ public class Grenade implements Listener {
 
         ShapedRecipe recipe = new ShapedRecipe(key, item);
 
-        recipe.shape(" F ", "ITI", "PPP");
+        recipe.shape(" F ", "ITI", "IPI");
 
         recipe.setIngredient('F', Material.FLINT_AND_STEEL);
         recipe.setIngredient('T', Material.TNT);
@@ -123,7 +134,11 @@ public class Grenade implements Listener {
 
     @EventHandler
     public void onGrenadeUnlock(PlayerInteractEvent e) {
-        if (e.getItem().getItemMeta().getDisplayName().equals("§aGranat zaczepny") && (e.getAction() == Action.RIGHT_CLICK_BLOCK || e.getAction() == Action.RIGHT_CLICK_AIR)) {
+        if (e.getItem() != null && e.getItem().getItemMeta().getDisplayName().equals("§aGranat zaczepny") && (e.getAction() == Action.RIGHT_CLICK_BLOCK || e.getAction() == Action.RIGHT_CLICK_AIR)) {
+            if (e.getItem().getAmount() != 1) {
+                new Title("Musisz trzymac jeden granat w rece.", Title.Type.ACTIONBAR, 5, 30, 5).show(e.getPlayer());
+                return;
+            }
             new Grenade(e);
         }
     }
@@ -136,9 +151,19 @@ public class Grenade implements Listener {
             lore.addAll(meta.getLore());
             if(lore.get(0).equals("§cOdbezpieczony!")) {
                 thrownGrenades.put(Integer.parseInt(meta.getLocalizedName()), e.getItemDrop());
-                e.getItemDrop().setVelocity(e.getItemDrop().getVelocity().multiply(3));
+                e.getItemDrop().setVelocity(e.getItemDrop().getVelocity().multiply(4));
             }
         }
     }
+
+
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onBlockPlace(BlockPlaceEvent e){
+        if(e.getBlock().getType() == Material.TNT && e.getItemInHand().getItemMeta().getDisplayName().equals("§aGranat zaczepny")) {
+            e.setCancelled(true);
+        }
+    }
+
+
 
 }

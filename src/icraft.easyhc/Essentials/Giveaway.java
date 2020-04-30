@@ -13,31 +13,44 @@ import org.bukkit.scheduler.BukkitScheduler;
 import java.util.HashMap;
 import java.util.UUID;
 
-public class Giveaway extends Main implements Listener {
+import static icraft.easyhc.Main.formatInfoAsMessage;
+
+public class Giveaway implements Listener {
     BukkitScheduler scheduler = Bukkit.getServer().getScheduler();
-    public static HashMap<UUID, Integer> schedulers;
+    public static Plugin plugin = Main.getPlugin(Main.class);
+    public static HashMap<UUID, Integer> tasks;
     public static HashMap<UUID, Integer> playTime;
+
+/*
+    public Giveaway() {
+        plugin.getServer().getPluginManager().registerEvents(this, plugin);
+    }
 
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent e){
-        Player p = e.getPlayer();
-        playTime.put(p.getUniqueId(), 0);
-        schedulers.put(e.getPlayer().getUniqueId(), scheduler.scheduleSyncRepeatingTask(this, (Runnable) () -> {
-            playTime.computeIfPresent(p.getUniqueId(), (k, v) -> v + 1);
-            if(playTime.get(p.getUniqueId()) % 6 == 0){
-                p.setExp(p.getExp() + 500);
-                p.sendMessage(formatInfoAsMessage("Otrzymales 500XP za godzine gry na serwerze."));
-            } else {
-                p.setExp(p.getExp() + 50);
-                p.sendMessage(formatInfoAsMessage("Otrzymales 50XP za 10 minut gry na serwerze."));
-            }
-        }, 12000, 12000));
+        try {
+            Player p = e.getPlayer();
+            playTime.put(p.getUniqueId(), 0);
+            tasks.put(e.getPlayer().getUniqueId(), scheduler.scheduleSyncRepeatingTask(plugin, (Runnable) () -> {
+                playTime.computeIfPresent(p.getUniqueId(), (k, v) -> v += 1);
+                if (playTime.get(p.getUniqueId()) % 6 == 0) {
+                    p.setExp(p.getExp() + 500);
+                    p.sendMessage(formatInfoAsMessage("Otrzymales 500XP za godzine gry na serwerze."));
+                } else {
+                    p.setExp(p.getExp() + 50);
+                    p.sendMessage(formatInfoAsMessage("Otrzymales 50XP za 10 minut gry na serwerze."));
+                }
+            }, 12000, 12000));
+        } catch(NullPointerException exception){
+            exception.printStackTrace();
+        }
     }
 
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent e){
-        scheduler.cancelTask(schedulers.get(e.getPlayer().getUniqueId()));
-        schedulers.remove(e.getPlayer().getUniqueId());
+        scheduler.cancelTask(tasks.get(e.getPlayer().getUniqueId()));
+        tasks.remove(e.getPlayer().getUniqueId());
     }
+ */
 
 }

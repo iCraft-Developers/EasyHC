@@ -15,7 +15,9 @@ import com.sk89q.worldedit.math.BlockVector3;
 import com.sk89q.worldedit.session.ClipboardHolder;
 import icraft.gui.Title;
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.Location;
+import org.bukkit.Sound;
 import org.bukkit.block.Block;
 import org.bukkit.boss.BarColor;
 import org.bukkit.boss.BarFlag;
@@ -23,8 +25,10 @@ import org.bukkit.boss.BarStyle;
 import org.bukkit.boss.BossBar;
 import org.bukkit.entity.*;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
+import org.bukkit.event.block.BlockExplodeEvent;
 import org.bukkit.event.entity.EntityDamageByBlockEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
@@ -39,7 +43,7 @@ import static icraft.easyhc.Main.formatInfoAsMessage;
 import static icraft.easyhc.Main.setServerError;
 
 public class Faction implements Listener {
-    private static HashMap<String, Faction> factions = new HashMap<>();
+    static HashMap<String, Faction> factions = new HashMap<>();
 
     private String tag;
     private String name;
@@ -51,14 +55,26 @@ public class Faction implements Listener {
     private Location2D pos2;
     private double hp;
     private BossBar bossbar;
+    private BossBar progressOfConquering;
+    private Location nearestConqueredBlock;
+    public static HashMap<UUID, String> factionChat = new HashMap<>();
 
     public Faction(Main plugin){
         Main.pm.registerEvents(this, plugin);
     }
 
-    public Faction(String tag, String name, UUID owner, Location2D heart, int level, boolean isNewlyCreated, UUID...members) throws Exception {
-        this(tag, name, owner, heart, level, isNewlyCreated);
+    public Faction(String tag, String name, UUID owner, Location2D heart, int level, double hp, boolean isNewlyCreated, UUID...members) throws Exception {
+        this(tag, name, owner, heart, level, hp, isNewlyCreated);
         addMembers(members);
+    }
+
+    public Faction(String tag, String name, UUID owner, Location2D heart, int level, boolean isNewlyCreated) throws Exception {
+        this(tag, name, owner, heart, level, 100.0, isNewlyCreated);
+    }
+
+
+    public Faction(String tag, String name, UUID owner, Location2D heart, int level, boolean isNewlyCreated, UUID...members) throws Exception {
+        this(tag, name, owner, heart, level, 100.0, isNewlyCreated, members);
     }
 
 
@@ -66,7 +82,23 @@ public class Faction implements Listener {
         return bossbar;
     }
 
-    public Faction(String tag, String name, UUID owner, Location2D heart, int level, boolean isNewlyCreated) throws Exception {
+    public static HashMap<String, Faction> getFactions() {
+        return factions;
+    }
+
+    public double getHp() {
+        return hp;
+    }
+
+    public BossBar getProgressOfConquering() {
+        return progressOfConquering;
+    }
+
+    public Location getNearestConqueredBlock() {
+        return nearestConqueredBlock;
+    }
+
+    public Faction(String tag, String name, UUID owner, Location2D heart, int level, double hp, boolean isNewlyCreated) throws Exception {
         members = new ArrayList<>();
         pos1 = new Location2D(heart.getX() - 15 - (level * 5), heart.getZ() - 15 - (level * 5));
         pos2 = new Location2D(heart.getX() + 15 + (level * 5), heart.getZ() + 15 + (level * 5));
@@ -76,10 +108,11 @@ public class Faction implements Listener {
         this.level = level;
         this.heart = heart;
         factions.put(tag, this);
-        this.hp = (this.level + 1) * 100.0;
+        this.hp = hp;
         this.bossbar = Bukkit.createBossBar("Gildia " + this.tag + " - " + this.name + "    " + ((int)this.hp) + "/" + ((this.level + 1) * 100) + "HP" + " (Poziom " + this.level + ")", BarColor.RED, BarStyle.SEGMENTED_10, BarFlag.CREATE_FOG, BarFlag.DARKEN_SKY);
+        this.progressOfConquering = Bukkit.createBossBar("Twoja gildia jest podbijana! Pozostało " + (31 + (level * 5)) + "m do serca!", BarColor.RED, BarStyle.SEGMENTED_10, BarFlag.DARKEN_SKY);
         if(isNewlyCreated) {
-            DatabaseBuffer.buffer.add(new BufferAction(BufferAction.ActionType.ADD_FACTION, tag, name, owner.toString(), heart.getX(), heart.getZ(), 0));
+            DatabaseBuffer.buffer.add(new BufferAction(BufferAction.ActionType.ADD_FACTION, tag, name, owner.toString(), heart.getX(), heart.getZ(), 0, 100));
             this.createHeart();
         }
         this.bossbar.setProgress(this.hp / ((this.level + 1) * 100));
@@ -398,11 +431,6 @@ public void checkIfEnteredOrLeavedFaction(Player p, Location from, Location to){
     //TODO: Dodac blokade dodawania endercystalow
     //TODO: Zrobic zabezpieczenie zeby pluginy nie niszczyly serca jak np komenda /mobkill
 
-    /*
-    if(e.getCause() != EntityDamageEvent.DamageCause.ENTITY_ATTACK && e.getCause() != EntityDamageEvent.DamageCause.ENTITY_SWEEP_ATTACK) {
-                        e.setCancelled(true);
-                    }
-     */
 
     @EventHandler
     public void onEntityDamageByEntity(EntityDamageByEntityEvent e) throws Throwable {
@@ -423,6 +451,7 @@ public void checkIfEnteredOrLeavedFaction(Player p, Location from, Location to){
                                     } else {
                                         f.bossbar.setProgress(f.hp / ((f.level + 1) * 100));
                                         f.bossbar.setTitle("Gildia " + f.tag + " - " + f.name + "    " + ((int) f.hp) + "/" + ((f.level + 1) * 100) + "HP" + " (Poziom " + f.level + ")");
+                                        DatabaseBuffer.buffer.add(new BufferAction(BufferAction.ActionType.ADD_FACTION, tag, name, owner.toString(), heart.getX(), heart.getZ(), 0, f.hp));
                                     }
                                 }
                             } else {
@@ -432,6 +461,7 @@ public void checkIfEnteredOrLeavedFaction(Player p, Location from, Location to){
                                 } else {
                                     f.bossbar.setProgress(f.hp / ((f.level + 1) * 100));
                                     f.bossbar.setTitle("Gildia " + f.tag + " - " + f.name + "    " + ((int) f.hp) + "/" + ((f.level + 1) * 100) + "HP" + " (Poziom " + f.level + ")");
+                                    DatabaseBuffer.buffer.add(new BufferAction(BufferAction.ActionType.ADD_FACTION, tag, name, owner.toString(), heart.getX(), heart.getZ(), 0, f.hp));
                                 }
                             }
                             e.setDamage(0);
@@ -485,6 +515,32 @@ public void checkIfEnteredOrLeavedFaction(Player p, Location from, Location to){
 
 
 
+@EventHandler
+public void onBlockExplodeEvent(BlockExplodeEvent e){
+    for(Faction f : Faction.getAll()) {
+        if(f.isAtLocation(e.getBlock().getLocation())) {
+            if(f.nearestConqueredBlock == null) f.nearestConqueredBlock = e.getBlock().getLocation(); else {
+                if(e.getBlock().getLocation().distance(new Location(Bukkit.getWorld("EasyHC"), f.heart.getX(), 45, f.heart.getZ())) < f.nearestConqueredBlock.distance(new Location(Bukkit.getWorld("EasyHC"), f.heart.getX(), 45, f.heart.getZ()))){
+                    f.nearestConqueredBlock = e.getBlock().getLocation();
+                }
+            }
+            f.progressOfConquering.setTitle("Twoja gildia jest podbijana! Pozostało " + (f.nearestConqueredBlock.distance(new Location(Bukkit.getWorld("EasyHC"), f.heart.getX(), 45, f.heart.getZ()))) + "m do serca!");
+            f.progressOfConquering.setProgress(f.nearestConqueredBlock.distance(new Location(Bukkit.getWorld("EasyHC"), f.heart.getX(), 45, f.heart.getZ())) / (31 + (f.level * 5)));
+            ArrayList<Player> players = new ArrayList<>();
+            if(Bukkit.getPlayer(f.getOwner()) != null) players.add(Bukkit.getPlayer(f.getOwner()).getPlayer());
+            for(UUID member : f.getMembers()){
+                if(Bukkit.getPlayer(member) != null) players.add(Bukkit.getPlayer(member).getPlayer());
+            }
+            for(Player p : players){
+                f.progressOfConquering.addPlayer(p);
+            }
+            return;
+        }
+    }
+}
+
+
+
 
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent e){
@@ -497,6 +553,19 @@ public void checkIfEnteredOrLeavedFaction(Player p, Location from, Location to){
             }
         }
 
+    }
+
+
+    public void onPlayerChat(AsyncPlayerChatEvent e){
+        Player p = e.getPlayer();
+        if(factionChat.containsKey(p.getUniqueId())){
+            Faction f = Faction.get(factionChat.get(p.getUniqueId()));
+            e.getRecipients().removeIf(player -> !f.isAllowed(player));
+            for(Player player : e.getRecipients()){
+                player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BELL, 1F, 1F);
+                e.setMessage(ChatColor.BOLD + e.getMessage());
+            }
+        }
     }
 
 
